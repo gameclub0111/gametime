@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<title>時間制限タイマー</title>
+<title>アナログ時間制限タイマー</title>
 <style>
 body{
   margin:0;
   background:#000;
-  color:white;
-  font-family:Arial, sans-serif;
   overflow:hidden;
+  font-family:Arial, sans-serif;
+  color:white;
 }
 
 #main{
@@ -17,16 +17,14 @@ body{
   justify-content:center;
   align-items:center;
   height:100vh;
-  text-align:center;
 }
 
-#clock{
-  font-size:18vw;
-  font-weight:bold;
+canvas{
+  display:block;
 }
 
 #remaining{
-  font-size:9vw; /* 時計の半分 */
+  font-size:3vw;
   margin-top:2vh;
 }
 
@@ -63,7 +61,7 @@ button{
 <button id="backBtn" onclick="exitFull()">戻る</button>
 
 <div id="main">
-  <div id="clock"></div>
+  <canvas id="clockCanvas"></canvas>
   <div id="remaining"></div>
 </div>
 
@@ -84,6 +82,21 @@ let startMinute = 0;
 let endMinute = 10;
 let lastState = "";
 
+const canvas = document.getElementById("clockCanvas");
+const ctx = canvas.getContext("2d");
+let radius;
+
+function resizeClock(){
+  const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+  canvas.width = size;
+  canvas.height = size;
+  radius = size / 2;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.translate(radius, radius);
+}
+window.addEventListener("resize", resizeClock);
+resizeClock();
+
 function startTimer(){
   startMinute = parseInt(document.getElementById("startMin").value);
   endMinute = parseInt(document.getElementById("endMin").value);
@@ -101,73 +114,96 @@ function exitFull(){
   document.getElementById("backBtn").style.display="none";
 }
 
-function updateClock(){
+function drawClock(){
   const now = new Date();
-  const h = now.getHours().toString().padStart(2,'0');
+  const h = now.getHours();
   const m = now.getMinutes();
   const s = now.getSeconds();
-
-  const clock = document.getElementById("clock");
-  clock.textContent =
-    h + ":" +
-    m.toString().padStart(2,'0') + ":" +
-    s.toString().padStart(2,'0');
 
   let state;
   let targetMinute;
 
   if(startMinute <= endMinute){
     if(m >= startMinute && m < endMinute){
-      state = "NG";
-      targetMinute = endMinute;
+      state="NG"; targetMinute=endMinute;
     }else{
-      state = "OK";
-      targetMinute = startMinute;
-      if(m >= endMinute) targetMinute += 60;
+      state="OK"; targetMinute=startMinute;
+      if(m>=endMinute) targetMinute+=60;
     }
   }else{
-    if(m >= startMinute || m < endMinute){
-      state = "NG";
-      targetMinute = endMinute;
-      if(m >= startMinute) targetMinute += 60;
+    if(m>=startMinute || m<endMinute){
+      state="NG"; targetMinute=endMinute;
+      if(m>=startMinute) targetMinute+=60;
     }else{
-      state = "OK";
-      targetMinute = startMinute;
+      state="OK"; targetMinute=startMinute;
     }
   }
 
-  // 色変更
-  if(state === "NG"){
-    clock.style.color = "red";
-  }else{
-    clock.style.color = "lime";
-  }
-
-  // 残り時間計算
-  let currentTotalSec = m * 60 + s;
-  let targetTotalSec = (targetMinute % 60) * 60;
-  if(targetMinute >= 60){
-    targetTotalSec = ((targetMinute - 60) * 60);
-  }
-
-  let diff = targetTotalSec - currentTotalSec;
-  if(diff < 0) diff += 3600;
-
-  let remMin = Math.floor(diff / 60).toString().padStart(2,'0');
-  let remSec = (diff % 60).toString().padStart(2,'0');
-
-  document.getElementById("remaining").textContent =
-    remMin + ":" + remSec;
-
-  // 切替音
-  if(state !== lastState){
+  if(state!==lastState){
     document.getElementById("alertSound").play();
-    lastState = state;
+    lastState=state;
   }
+
+  ctx.clearRect(-radius,-radius,canvas.width,canvas.height);
+
+  const color = (state==="NG") ? "red" : "lime";
+
+  // 外枠
+  ctx.beginPath();
+  ctx.arc(0,0,radius-10,0,2*Math.PI);
+  ctx.lineWidth=15;
+  ctx.strokeStyle=color;
+  ctx.stroke();
+
+  // 目盛りと数字
+  ctx.font = radius*0.15 + "px Arial";
+  ctx.textBaseline="middle";
+  ctx.textAlign="center";
+  ctx.fillStyle=color;
+
+  for(let num=1; num<=12; num++){
+    let ang = num * Math.PI / 6;
+    ctx.rotate(ang);
+    ctx.translate(0, -radius*0.8);
+    ctx.rotate(-ang);
+    ctx.fillText(num.toString(),0,0);
+    ctx.rotate(ang);
+    ctx.translate(0, radius*0.8);
+    ctx.rotate(-ang);
+  }
+
+  // 針
+  drawHand((h%12)*Math.PI/6 + m*Math.PI/(6*60), radius*0.5, 6,"white");
+  drawHand(m*Math.PI/30, radius*0.7, 4,"white");
+  drawHand(s*Math.PI/30, radius*0.8, 2,"red");
+
+  // 残り時間
+  let currentSec = m*60+s;
+  let targetSec = (targetMinute%60)*60;
+  if(targetMinute>=60) targetSec=((targetMinute-60)*60);
+  let diff=targetSec-currentSec;
+  if(diff<0) diff+=3600;
+
+  let remMin=Math.floor(diff/60).toString().padStart(2,'0');
+  let remSec=(diff%60).toString().padStart(2,'0');
+  document.getElementById("remaining").textContent=
+    "次の切替まで "+remMin+":"+remSec;
 }
 
-setInterval(updateClock,1000);
-updateClock();
+function drawHand(pos,length,width,color){
+  ctx.beginPath();
+  ctx.lineWidth=width;
+  ctx.lineCap="round";
+  ctx.strokeStyle=color;
+  ctx.moveTo(0,0);
+  ctx.rotate(pos);
+  ctx.lineTo(0,-length);
+  ctx.stroke();
+  ctx.rotate(-pos);
+}
+
+setInterval(drawClock,1000);
+drawClock();
 </script>
 
 </body>
