@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<title>時間制限タイマー</title>
+<style>
+body{
+  margin:0;
+  background:#000;
+  color:white;
+  font-family:Arial, sans-serif;
+  overflow:hidden;
+}
+
+#main{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  text-align:center;
+}
+
+#clock{
+  font-size:18vw;
+  font-weight:bold;
+}
+
+#remaining{
+  font-size:9vw; /* 時計の半分 */
+  margin-top:2vh;
+}
+
+#settings{
+  position:fixed;
+  bottom:20px;
+  width:100%;
+  text-align:center;
+}
+
+#backBtn{
+  position:fixed;
+  right:20px;
+  top:20px;
+  font-size:18px;
+  padding:5px 15px;
+  display:none;
+}
+
+input{
+  font-size:20px;
+  width:60px;
+}
+
+button{
+  font-size:20px;
+  padding:5px 15px;
+  margin:5px;
+}
+</style>
+</head>
+<body>
+
+<button id="backBtn" onclick="exitFull()">戻る</button>
+
+<div id="main">
+  <div id="clock"></div>
+  <div id="remaining"></div>
+</div>
+
+<div id="settings">
+  NG開始分:
+  <input type="number" id="startMin" min="0" max="59" value="0">
+  NG終了分:
+  <input type="number" id="endMin" min="0" max="59" value="10">
+  <br>
+  <button onclick="startTimer()">開始</button>
+  <button onclick="enterFull()">フルスクリーン</button>
+</div>
+
+<audio id="alertSound" src="1.mp3"></audio>
+
+<script>
+let startMinute = 0;
+let endMinute = 10;
+let lastState = "";
+
+function startTimer(){
+  startMinute = parseInt(document.getElementById("startMin").value);
+  endMinute = parseInt(document.getElementById("endMin").value);
+}
+
+function enterFull(){
+  document.documentElement.requestFullscreen();
+  document.getElementById("settings").style.display="none";
+  document.getElementById("backBtn").style.display="block";
+}
+
+function exitFull(){
+  document.exitFullscreen();
+  document.getElementById("settings").style.display="block";
+  document.getElementById("backBtn").style.display="none";
+}
+
+function updateClock(){
+  const now = new Date();
+  const h = now.getHours().toString().padStart(2,'0');
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+
+  const clock = document.getElementById("clock");
+  clock.textContent =
+    h + ":" +
+    m.toString().padStart(2,'0') + ":" +
+    s.toString().padStart(2,'0');
+
+  let state;
+  let targetMinute;
+
+  if(startMinute <= endMinute){
+    if(m >= startMinute && m < endMinute){
+      state = "NG";
+      targetMinute = endMinute;
+    }else{
+      state = "OK";
+      targetMinute = startMinute;
+      if(m >= endMinute) targetMinute += 60;
+    }
+  }else{
+    if(m >= startMinute || m < endMinute){
+      state = "NG";
+      targetMinute = endMinute;
+      if(m >= startMinute) targetMinute += 60;
+    }else{
+      state = "OK";
+      targetMinute = startMinute;
+    }
+  }
+
+  // 色変更
+  if(state === "NG"){
+    clock.style.color = "red";
+  }else{
+    clock.style.color = "lime";
+  }
+
+  // 残り時間計算
+  let currentTotalSec = m * 60 + s;
+  let targetTotalSec = (targetMinute % 60) * 60;
+  if(targetMinute >= 60){
+    targetTotalSec = ((targetMinute - 60) * 60);
+  }
+
+  let diff = targetTotalSec - currentTotalSec;
+  if(diff < 0) diff += 3600;
+
+  let remMin = Math.floor(diff / 60).toString().padStart(2,'0');
+  let remSec = (diff % 60).toString().padStart(2,'0');
+
+  document.getElementById("remaining").textContent =
+    remMin + ":" + remSec;
+
+  // 切替音
+  if(state !== lastState){
+    document.getElementById("alertSound").play();
+    lastState = state;
+  }
+}
+
+setInterval(updateClock,1000);
+updateClock();
+</script>
+
+</body>
+</html>
