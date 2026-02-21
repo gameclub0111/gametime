@@ -45,10 +45,15 @@ canvas{
   display:none;
 }
 
-input, button{
+input{
   font-size:20px;
+  width:60px;
+}
+
+button{
+  font-size:20px;
+  padding:5px 15px;
   margin:5px;
-  padding:5px 10px;
 }
 </style>
 </head>
@@ -69,21 +74,14 @@ input, button{
   <br>
   <button onclick="startTimer()">開始</button>
   <button onclick="enterFull()">フルスクリーン</button>
-  <br>
-  モード:
-  <button onclick="setMode(1)">1</button>
-  <button onclick="setMode(2)">2</button>
-  <button onclick="setMode(3)">3</button>
 </div>
 
-<audio id="alertSound1" src="1.mp3"></audio>
-<audio id="alertSound2" src="2.mp3"></audio>
+<audio id="alertSound" src="1.mp3"></audio>
 
 <script>
 let startMinute = 0;
 let endMinute = 10;
 let lastState = "";
-let mode = 1; // デフォルトモード1
 
 const canvas = document.getElementById("clockCanvas");
 const ctx = canvas.getContext("2d");
@@ -117,16 +115,6 @@ function exitFull(){
   document.getElementById("backBtn").style.display="none";
 }
 
-function setMode(n){
-  mode = n;
-}
-
-function playSound(){
-  if(mode===1) document.getElementById("alertSound1").play();
-  else if(mode===2) document.getElementById("alertSound2").play();
-  // mode 3はミュート
-}
-
 function drawClock(){
   const now = new Date();
   const h = now.getHours();
@@ -153,7 +141,7 @@ function drawClock(){
   }
 
   if(state!==lastState){
-    playSound();
+    document.getElementById("alertSound").play();
     lastState=state;
   }
 
@@ -168,7 +156,7 @@ function drawClock(){
   ctx.strokeStyle=color;
   ctx.stroke();
 
-  // 数字
+  // 目盛りと数字
   ctx.font = radius*0.15 + "px Arial";
   ctx.textBaseline="middle";
   ctx.textAlign="center";
